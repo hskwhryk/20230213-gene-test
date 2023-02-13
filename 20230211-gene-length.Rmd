@@ -1,0 +1,94 @@
+---
+title: "20230211 gene length calculation"
+author: "Hryk"
+date: "`r Sys.Date()`"
+output:
+  rmdformats::robobook:
+    highlight: kate
+    code_folding: show
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(cache = TRUE)
+```
+
+## Loading libraries
+
+Libraries are:
+
+```{r loading libraries}
+# First, import the GTF-file that you have also used as input for htseq-count
+# BiocManager::install("GenomicFeatures")
+library(GenomicFeatures)
+library(DT)
+library(data.table)
+```
+
+## Extracting total non-overlapping exon length per gene 
+
+According to [Tutorial:Extract Total Non-Overlapping Exon Length Per Gene With Bioconductor](https://www.biostars.org/p/83901/ "Biostars Irsan's post"), I will extract total non-overlapping exon length per gene.
+
+GTF files were downloaded from
+- [Ensemble](http://ftp.ensembl.org/pub/)
+- [NCBI](https://ftp.ncbi.nlm.nih.gov/genomes/genbank/vertebrate_mammalian/Homo_sapiens/assembly_summary_historical.txt)
+- [NCBI](https://ftp.ncbi.nlm.nih.gov/genomes/genbank/vertebrate_mammalian/Mus_musculus/assembly_summary_historical.txt)
+- [UCSC](https://hgdownload.soe.ucsc.edu/downloads.html)
+NCBI mapping from Entrez GeneID to Ensembl identifiers.
+    ftp://ftp.ncbi.nlm.nih.gov/gene/DATA/gene2ensembl.gz
+
+```{r extracting for human}
+gene2ensembl <- fread("gene2ensembl.gz", showProgress = FALSE, data.table = FALSE)
+# I could not prepare gtf from UCSC
+# txdb.UCSC.hg38 <- makeTxDbFromGFF(gzfile("UCSC.hg38.gtf.gz"))
+# exons.list.per.gene.UCSC.hg38 <- exonsBy(txdb.UCSC.hg38, by="gene")
+# then for each gene, reduce all the exons to a set of non overlapping exons, calculate their lengths (widths) and sum then
+# exonic.gene.sizes..UCSC.hg38 <- sum(width(reduce(exons.list.per.gene..UCSC.hg38)))
+# GRCh37.75
+txdb.GRCh37.75 <- makeTxDbFromGFF("Homo_sapiens.GRCh37.75.gtf.gz")
+exons.list.per.gene.GRCh37.75 <- exonsBy(txdb.GRCh37.75, by="gene")
+exonic.gene.sizes.GRCh37.75 <- sum(width(reduce(exons.list.per.gene.GRCh37.75)))
+
+# GRCh38.109
+txdb.GRCh38.109 <- makeTxDbFromGFF("Homo_sapiens.GRCh38.109.gtf.gz")
+exons.list.per.gene.GRCh38.109 <- exonsBy(txdb.GRCh38.109, by="gene")
+exonic.gene.sizes.GRCh38.109 <- sum(width(reduce(exons.list.per.gene.GRCh38.109)))
+
+# GRCh37.p13
+txdb.GRCh37.p13 <- makeTxDbFromGFF("GCF_000001405.25_GRCh37.p13_genomic.gtf.gz")
+exons.list.per.gene.GRCh37.p13 <- exonsBy(txdb.GRCh37.p13, by="gene")
+exonic.gene.sizes.GRCh37.p13 <- sum(width(reduce(exons.list.per.gene.GRCh37.p13)))
+exonic.gene.names.GRCh37.p13 <- names(exons.list.per.gene.GRCh37.p13)
+exonic.gene.names2.GRCh37.p13 <- select(txdb.GRCh37.p13, keys = exonic.gene.names.GRCh37.p13, columns = c("TXNAME", "TXID"), "GENEID")
+exonic.gene.lengths.GRCh37.p13 <- data.frame(exonic.gene.sizes.GRCh37.p13, exonic.gene.names.GRCh37.p13)
+
+# GRCh38.p14
+txdb.GRCh38.p14 <- makeTxDbFromGFF("GCF_000001405.40_GRCh38.p14_genomic.gtf.gz")
+exons.list.per.gene.GRCh38.p14 <- exonsBy(txdb.GRCh38.p14, by="gene")
+exonic.gene.sizes.GRCh38.p14 <- sum(width(reduce(exons.list.per.gene.GRCh38.p14)))
+
+
+keys <- keys(txdb.GRCh38.p14, keytype = "TXNAME")
+tx2gene <- select(txdb.GRCh38.p14, keys = keys, columns = c("GENEID", "TXID"), "TXNAME")
+
+colnames(gene2ensembl) <- c("tax_id", colnames(gene2ensembl)[2:7])
+gene2ensembl.9606 <- dplyr::filter(gene2ensembl, tax_id == 9606)
+gene2ensembl.10090 <- dplyr::filter(gene2ensembl, tax_id == 10090)
+
+saveRDS(gene2ensembl.2, "results001,RDS")
+saveRDS(exons.list.per.gene.GRCh37.75, "results002.RDS")
+saveRDS(exons.list.per.gene.GRCh37.p13, "results003.RDS")
+saveRDS(exons.list.per.gene.GRCh38.109, "results004.RDS")
+saveRDS(exons.list.per.gene.GRCh38.p14, "results005.RDS")
+saveRDS(gene2ensembl.9606, "results006.RDS")
+saveRDS(gene2ensembl.10090, "results007.RDS")
+```
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
